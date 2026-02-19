@@ -18,11 +18,34 @@ def extract_text_from_pdf(file):
 # -------------------------
 def extract_name(text):
     lines = text.split("\n")
+
+    ignore_words = [
+        "objective", "summary", "education",
+        "skills", "projects", "experience",
+        "profile", "career", "about"
+    ]
+
     for line in lines:
         line = line.strip()
-        if 3 < len(line) < 40 and len(line.split()) <= 4:
-            return line.title()
-    return "Not Found"
+
+        # Skip empty lines
+        if not line:
+            continue
+
+        # Skip headings
+        if line.lower() in ignore_words:
+            continue
+
+        # Name usually 2-4 words
+        words = line.split()
+
+        if 1 < len(words) <= 4:
+            # Check if mostly alphabets
+            if all(word.isalpha() for word in words):
+                return line.title()
+
+    return "Name Not Found"
+
 
 
 # -------------------------
