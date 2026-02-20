@@ -28,7 +28,7 @@ async def analyze(request: Request, file: UploadFile = File(...)):
     name = extract_name(text)
     resume_skills = extract_skills(text)
 
-    best_role, role_score, message = suggest_best_role(resume_skills)
+    role_results = suggest_best_role(resume_skills)
 
     return templates.TemplateResponse(
         "index.html",
@@ -36,9 +36,6 @@ async def analyze(request: Request, file: UploadFile = File(...)):
             "request": request,
             "name": name,
             "resume_skills": resume_skills,
-            "best_role": best_role,
-            "role_score": role_score,
-            "message": message
+            "role_results": role_results
         }
     )
-

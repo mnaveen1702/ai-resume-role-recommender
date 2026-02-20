@@ -1,113 +1,104 @@
+import pdfplumber
 import re
-import PyPDF2
 
 
-# -------------------------
-# PDF TEXT EXTRACTION
-# -------------------------
 def extract_text_from_pdf(file):
-    reader = PyPDF2.PdfReader(file)
     text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-    return text.lower()
+    with pdfplumber.open(file) as pdf:
+        for page in pdf.pages:
+            content = page.extract_text()
+            if content:
+                text += content
+    return text
 
 
-# -------------------------
-# NAME EXTRACTION
-# -------------------------
 def extract_name(text):
     lines = text.split("\n")
 
-    ignore_words = [
-        "objective", "summary", "education",
-        "skills", "projects", "experience",
-        "profile", "career", "about"
+    blacklist = [
+        "resume", "objective", "summary",
+        "skills", "education", "experience", "profile"
     ]
 
-    for line in lines:
-        line = line.strip()
+    for line in lines[:10]:
+        clean = line.strip()
 
-        # Skip empty lines
-        if not line:
-            continue
-
-        # Skip headings
-        if line.lower() in ignore_words:
-            continue
-
-        # Name usually 2-4 words
-        words = line.split()
-
-        if 1 < len(words) <= 4:
-            # Check if mostly alphabets
-            if all(word.isalpha() for word in words):
-                return line.title()
+        if len(clean.split()) <= 4:
+            if not any(word in clean.lower() for word in blacklist):
+                if re.match(r'^[A-Z][a-zA-Z.\s]+$', clean):
+                    return clean
 
     return "Name Not Found"
 
 
-
-# -------------------------
-# SKILL EXTRACTION
-# -------------------------
 def extract_skills(text):
 
-    skills_db = [
-        "python", "java", "c", "c++", "sql",
-        "react", "javascript", "html", "css",
-        "machine learning", "data structures",
-        "oop", "git", "github", "firebase",
-        "rest api"
+    skill_list = [
+        "python", "java", "c", "c++",
+        "html", "css", "javascript",
+        "react", "angular", "vue",
+        "flask", "django", "api",
+        "sql", "mysql", "postgresql",
+        "machine learning", "tensorflow",
+        "pandas", "numpy", "scikit-learn",
+        "data analysis", "excel",
+        "power bi", "tableau"
     ]
 
-    found_skills = []
+    found = []
+    lower_text = text.lower()
 
-    for skill in skills_db:
-        if skill in text:
-            found_skills.append(skill)
+    for skill in skill_list:
+        if skill in lower_text:
+            found.append(skill)
 
-    return found_skills
+    return found
 
 
-# -------------------------
-# ROLE SUGGESTION ENGINE
-# -------------------------
-def suggest_best_role(skills):
+def suggest_best_role(user_skills):
 
-    role_map = {
-        "Frontend Developer": ["react", "javascript", "html", "css"],
-        "Backend Developer": ["python", "java", "sql", "rest api"],
-        "Machine Learning Engineer": ["python", "machine learning"],
-        "Full Stack Developer": ["react", "python", "sql", "javascript"]
+    role_database = {
+
+        "Backend Developer": [
+            "python", "java", "flask", "django", "sql", "api"
+        ],
+
+        "Frontend Developer": [
+            "html", "css", "javascript", "react", "angular"
+        ],
+
+        "Machine Learning Engineer": [
+            "python", "machine learning",
+            "pandas", "numpy", "tensorflow"
+        ],
+
+        "Full Stack Developer": [
+            "html", "css", "javascript",
+            "react", "flask", "sql"
+        ],
+
+        "Data Analyst": [
+            "python", "sql",
+            "excel", "power bi", "tableau"
+        ]
     }
 
-    best_role = "No Matching Role"
-    best_score = 0
+    results = []
 
-    for role, role_skills in role_map.items():
+    for role, required_skills in role_database.items():
 
-        match_count = len(set(skills) & set(role_skills))
+        matched = [s for s in required_skills if s in user_skills]
+        missing = [s for s in required_skills if s not in user_skills]
 
-        if len(skills) == 0:
-            score = 0
-        else:
-            # Hybrid Smart Formula 🔥
-            score = int(
-                (match_count / len(role_skills)) * 70 +
-                (match_count / len(skills)) * 30
-            )
+        score = int((len(matched) / len(required_skills)) * 100)
 
-        if score > best_score:
-            best_score = score
-            best_role = role
+        results.append({
+            "role": role,
+            "score": score,
+            "matched": matched,
+            "missing": missing
+        })
 
-    # Suitability Message Logic
-    if best_score >= 80:
-        message = "Highly Suitable for this Role 🚀"
-    elif best_score >= 60:
-        message = "Good Match 👍"
-    else:
-        message = "Needs Skill Improvement 📚"
+    results.sort(key=lambda x: x["score"], reverse=True)
 
-    return best_role, best_score, message
+    return results
